@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Download, Printer, FileText, FileSpreadsheet, Eye, ChevronRight } from 'lucide-react';
+import {
+  Download,
+  Printer,
+  FileText,
+  FileSpreadsheet,
+  CheckCircle2,
+  Sparkles,
+} from 'lucide-react';
 import { formatBastTanggalLengkap, formatTanggalIndo, formatRupiah } from '../utils/terbilang';
 import { generateSuratTugasDocx, generateBastDocx } from '../utils/docxGenerator';
 import { generateSpjExcel } from '../utils/excelParser';
@@ -7,10 +14,12 @@ import { saveAs } from 'file-saver';
 
 export default function DocumentPreview({ formData, mitras }) {
   const [activeDoc, setActiveDoc] = useState('st'); // 'st' | 'bast' | 'spj'
-  const [selectedMitraIdx, setSelectedMitraIdx] = useState(0);
+  const [rawSelectedMitraIdx, setSelectedMitraIdx] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const activeMitra = mitras[selectedMitraIdx] || mitras[0] || {};
+  // Index bisa di luar jangkauan setelah berganti survei dengan jumlah mitra lebih sedikit
+  const selectedMitraIdx = rawSelectedMitraIdx < mitras.length ? rawSelectedMitraIdx : 0;
+  const activeMitra = mitras[selectedMitraIdx] || {};
   const isKolektif = mitras.length > 1;
 
   // Handle Unduh Surat Tugas (.docx)
@@ -19,6 +28,23 @@ export default function DocumentPreview({ formData, mitras }) {
     try {
       const blob = await generateSuratTugasDocx({ ...formData, mitra_list: mitras });
       saveAs(blob, `Surat_Tugas_${formData.nama_kegiatan.replace(/\s+/g, '_')}.docx`);
+    } catch (err) {
+      alert('Gagal membuat Surat Tugas Word: ' + err.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Handle Unduh ST Khusus Single Mitra (.docx)
+  const handleDownloadSingleST = async () => {
+    setIsGenerating(true);
+    try {
+      const blob = await generateSuratTugasDocx({
+        ...formData,
+        mitra_list: [activeMitra],
+      });
+      const namaClean = (activeMitra.nama || 'Mitra').replace(/\s+/g, '_');
+      saveAs(blob, `Surat_Tugas_${namaClean}_${formData.nama_kegiatan.replace(/\s+/g, '_')}.docx`);
     } catch (err) {
       alert('Gagal membuat Surat Tugas Word: ' + err.message);
     } finally {
@@ -77,7 +103,7 @@ export default function DocumentPreview({ formData, mitras }) {
   return (
     <div className="space-y-4">
       {/* Action Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 no-print">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 no-print space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Sub-Tabs Nav */}
           <div className="flex items-center space-x-1.5 p-1 bg-slate-100 rounded-lg">
@@ -124,7 +150,7 @@ export default function DocumentPreview({ formData, mitras }) {
               onClick={handleDownloadST}
               disabled={isGenerating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
-              title="Unduh Surat Tugas dalam format Microsoft Word (.docx)"
+              title="Unduh Surat Tugas dalam format Word (.docx) berbasis template asli BPS 7301"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh ST (.docx)</span>
@@ -134,7 +160,7 @@ export default function DocumentPreview({ formData, mitras }) {
               onClick={handleDownloadAllBast}
               disabled={isGenerating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
-              title="Unduh seluruh BAST mitra dalam 1 file Word (.docx)"
+              title="Unduh seluruh BAST mitra dalam 1 file Word (.docx) berbasis template asli BPS 7301"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh All BAST (.docx)</span>
@@ -160,33 +186,45 @@ export default function DocumentPreview({ formData, mitras }) {
           </div>
         </div>
 
-        {/* Mitra Selector jika sedang melihat BAST */}
-        {activeDoc === 'bast' && (
-          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-slate-700">Pilih Mitra Pratinjau:</span>
-              <select
-                value={selectedMitraIdx}
-                onChange={(e) => setSelectedMitraIdx(Number(e.target.value))}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded font-medium text-slate-800 focus:ring-1 focus:ring-sky-500"
-              >
-                {mitras.map((m, idx) => (
-                  <option key={idx} value={idx}>
-                    #{idx + 1} - {m.nama || 'Mitra ' + (idx + 1)} ({m.realisasi} Sampel)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={handleDownloadSingleBast}
-              disabled={isGenerating}
-              className="text-xs text-indigo-700 hover:text-indigo-900 font-semibold underline"
+        {/* Mitra Selector jika sedang melihat BAST atau ST Kolektif */}
+        <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center space-x-2">
+            <span className="font-semibold text-slate-700">Pilih Mitra:</span>
+            <select
+              value={selectedMitraIdx}
+              onChange={(e) => setSelectedMitraIdx(Number(e.target.value))}
+              className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded font-medium text-slate-800 focus:ring-1 focus:ring-sky-500"
             >
-              Unduh Khusus BAST #{selectedMitraIdx + 1} ({activeMitra.nama}) (.docx)
-            </button>
+              {mitras.map((m, idx) => (
+                <option key={idx} value={idx}>
+                  #{idx + 1} - {m.nama || 'Mitra ' + (idx + 1)} ({m.realisasi} Sampel)
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+
+          <div className="flex items-center space-x-3">
+            {activeDoc === 'st' && isKolektif && (
+              <button
+                onClick={handleDownloadSingleST}
+                disabled={isGenerating}
+                className="text-xs text-sky-700 hover:text-sky-900 font-semibold underline"
+              >
+                Unduh Khusus ST #{selectedMitraIdx + 1} ({activeMitra.nama}) (.docx)
+              </button>
+            )}
+
+            {activeDoc === 'bast' && (
+              <button
+                onClick={handleDownloadSingleBast}
+                disabled={isGenerating}
+                className="text-xs text-indigo-700 hover:text-indigo-900 font-semibold underline"
+              >
+                Unduh Khusus BAST #{selectedMitraIdx + 1} ({activeMitra.nama}) (.docx)
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* PAPER CANVAS SIMULATION */}
@@ -195,9 +233,12 @@ export default function DocumentPreview({ formData, mitras }) {
           {/* 1. PREVIEW SURAT TUGAS */}
           {activeDoc === 'st' && (
             <div className="space-y-4">
-              <div className="text-center space-y-1">
-                <h2 className="text-base font-bold tracking-wide">BADAN PUSAT STATISTIK</h2>
-                <h3 className="text-base font-bold tracking-wide">SURAT TUGAS</h3>
+              <div className="text-center space-y-1 pb-2">
+                <div className="w-11 h-11 bg-sky-700 text-white rounded-lg mx-auto flex items-center justify-center font-bold text-xs tracking-tight mb-2 shadow-sm">
+                  BPS
+                </div>
+                <h2 className="text-base font-bold font-serif tracking-wider">BADAN PUSAT STATISTIK</h2>
+                <h3 className="text-base font-bold font-serif tracking-wide">SURAT TUGAS</h3>
                 <p className="text-xs text-slate-700">Nomor : {formData.st_nomor}</p>
               </div>
 
@@ -285,6 +326,25 @@ export default function DocumentPreview({ formData, mitras }) {
           {/* 2. PREVIEW BAST */}
           {activeDoc === 'bast' && (
             <div className="space-y-4">
+              {/* Kop Dinas BPS dengan Alamat Resmi */}
+              <div className="border-b-2 border-slate-900 pb-3 mb-4 flex items-center justify-between gap-4">
+                <div className="w-12 h-12 bg-sky-700 text-white rounded-lg flex items-center justify-center font-bold text-xs tracking-tight shadow-sm flex-shrink-0">
+                  BPS
+                </div>
+                <div className="flex-1 text-center font-serif">
+                  <h2 className="text-sm font-bold tracking-wider uppercase">BADAN PUSAT STATISTIK</h2>
+                  <h3 className="text-xs font-bold uppercase tracking-wider">
+                    {formData.satker_nama.replace(/^BPS\s+/i, '')}
+                  </h3>
+                  <p className="text-[10px] text-slate-600">
+                    Jl. RE Martadinata No. 05, Kode Pos 92812 Telp. (0414)21037
+                  </p>
+                  <p className="text-[10px] text-slate-600">
+                    Homepage: http://selayarkab.bps.go.id • E-mail: bps7301@bps.go.id
+                  </p>
+                </div>
+              </div>
+
               <div className="text-center space-y-0.5">
                 <h2 className="text-sm sm:text-base font-bold tracking-wide uppercase">
                   BERITA ACARA SERAH TERIMA PEKERJAAN
@@ -420,7 +480,7 @@ export default function DocumentPreview({ formData, mitras }) {
                   </thead>
                   <tbody>
                     {mitras.map((m, idx) => {
-                      const vol = Number(m.realisasi || m.target || 0);
+                      const vol = Number(m.realisasi) || 0;
                       const harga = Number(m.honor || 0);
                       const bruto = vol * harga;
                       const pph = 0;

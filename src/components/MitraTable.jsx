@@ -4,7 +4,7 @@ import { formatRupiah } from '../utils/terbilang';
 import { parseExcelMitra, generateTemplateExcel } from '../utils/excelParser';
 import { saveAs } from 'file-saver';
 
-export default function MitraTable({ mitras, setMitras }) {
+export default function MitraTable({ mitras, setMitras, onOpenUploadSurvei }) {
   const fileInputRef = useRef(null);
 
   const handleAddMitra = () => {
@@ -93,6 +93,17 @@ export default function MitraTable({ mitras, setMitras }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onOpenUploadSurvei && (
+              <button
+                onClick={onOpenUploadSurvei}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition"
+                title="Unggah file Excel untuk menambah survei baru beserta daftar mitranya"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>+ Survei & Mitra via Excel</span>
+              </button>
+            )}
+
             <button
               onClick={handleAddMitra}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
@@ -104,9 +115,10 @@ export default function MitraTable({ mitras, setMitras }) {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+              title="Import data mitra ke survei ini"
             >
               <Upload className="w-4 h-4" />
-              <span>Import Excel</span>
+              <span>Import Mitra (Excel)</span>
             </button>
             <input
               type="file"
@@ -122,7 +134,7 @@ export default function MitraTable({ mitras, setMitras }) {
               title="Unduh contoh file format Excel untuk import"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Template Excel</span>
+              <span>Template Mitra</span>
             </button>
           </div>
         </div>
